@@ -8,7 +8,7 @@ from cycler import cycler
 
 plt.style.use('seaborn')
 
-use_kpfonts = True
+use_kpfonts = False
 
 
 dark_mode = False
@@ -107,6 +107,11 @@ pres_a = dens_a * pc.kboltz * temp_a
 plot_mach_bg = False
 
 
+# Which bits to do
+do_fkin_plot = False
+do_mach_plot = False
+
+
 # _______________________________________________________________________________
 # Functions
 
@@ -140,6 +145,9 @@ def density(mdot, vel, area):
 
     return mdot / (vel * area)
 
+def mdot_from_mach(mach, power, vel):
+
+    return power / (vel * vel / 2) * fkin(mach)
 
 # _______________________________________________________________________________
 # Main bit
@@ -157,56 +165,67 @@ fkin_ticks = [0, 0.2, 0.4, 0.6, 0.8, 1]
 pres_ticks = [10, 30, 100, 300, 1000]
 dens_ticks = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100]
 
-f1 = plt.figure(figsize=(6, 4))
+if do_mach_plot:
+    f1 = plt.figure(figsize=(6, 4))
 
-if plot_mach_bg:
-    plt.imshow(mach_b, cmap=cm.viridis_r, norm=cl.LogNorm(0.3, 30), origin='lower', aspect='auto',
-               extent=(np.log10(vel[0]), np.log10(vel[-1]), np.log10(mdot[0]), np.log10(mdot[-1])))
-    cb = plt.colorbar(ticks=mach_ticks)
-    cb.ax.set_yticklabels(map(str, mach_ticks))
-    cb.ax.set_ylabel(r'Mach Number')
-else:
-    plt.imshow(fkin(mach_b), cmap=cm.pink_r, origin='lower', aspect='auto',
-               extent=(np.log10(vel[0]), np.log10(vel[-1]), np.log10(mdot[0]), np.log10(mdot[-1])),
-               norm=cl.Normalize(0.0, 1.0))
-    cb = plt.colorbar(ticks=fkin_ticks)
-    cb.ax.set_yticklabels(map(str, fkin_ticks))
-    cb.ax.set_ylabel(r'$\frac{1}{2} \dot{m} v^2$ / L ')
-
-
-cs = plt.contour(np.log10(vel), np.log10(mdot), mach_b, cmap=cm.pink, linewidths=1.0,
-                 levels=mach_ticks[:-2], norm=cl.Normalize(0., 5), linestyles=':')
-plt.clabel(cs, fmt='%2.1f', fontsize='smaller')
-plt.xlabel(r'$\log_{10} \beta$ [ $c$ ]')
-plt.ylabel(r'$\log_{10} \dot{m}$ [ M$_\odot$ yr $^{-1}$ ]')
+    if plot_mach_bg:
+        plt.imshow(mach_b, cmap=cm.viridis_r, norm=cl.LogNorm(0.3, 30), origin='lower', aspect='auto',
+                   extent=(np.log10(vel[0]), np.log10(vel[-1]), np.log10(mdot[0]), np.log10(mdot[-1])))
+        cb = plt.colorbar(ticks=mach_ticks)
+        cb.ax.set_yticklabels(map(str, mach_ticks))
+        cb.ax.set_ylabel(r'Mach Number')
+    else:
+        plt.imshow(fkin(mach_b), cmap=cm.pink_r, origin='lower', aspect='auto',
+                   extent=(np.log10(vel[0]), np.log10(vel[-1]), np.log10(mdot[0]), np.log10(mdot[-1])),
+                   norm=cl.Normalize(0.0, 1.0))
+        cb = plt.colorbar(ticks=fkin_ticks)
+        cb.ax.set_yticklabels(map(str, fkin_ticks))
+        cb.ax.set_ylabel(r'$\frac{1}{2} \dot{m} v^2$ / L ')
 
 
-c1 = plt.contour(np.log10(vel), np.log10(mdot), pres_b / pres_a,
-                 cmap=cm.copper_r, linewidths=0.5,
-                 levels=pres_ticks, linestyles='-',
-                 norm=cl.LogNorm(10, 1000))
-
-plt.clabel(c1, fmt='%3.0f', fontsize='smaller')
-
-plt.grid(False)
+    cs = plt.contour(np.log10(vel), np.log10(mdot), mach_b, cmap=cm.pink, linewidths=1.0,
+                     levels=mach_ticks[:-2], norm=cl.Normalize(0., 5), linestyles=':')
+    plt.clabel(cs, fmt='%2.1f', fontsize='smaller')
+    plt.xlabel(r'$\log_{10} v$ [ $c$ ]')
+    plt.ylabel(r'$\log_{10} \dot{m}$ [ M$_\odot$ yr $^{-1}$ ]')
 
 
-c2 = plt.contour(np.log10(vel), np.log10(mdot), dens_b / dens_a, colors='C2',
-                 linewidths=0.5,
-                 levels=dens_ticks, linestyles='--')
-plt.clabel(c2, fmt='%3.2f', fontsize='smaller')
+    c1 = plt.contour(np.log10(vel), np.log10(mdot), pres_b / pres_a,
+                     cmap=cm.copper_r, linewidths=0.5,
+                     levels=pres_ticks, linestyles='-',
+                     norm=cl.LogNorm(10, 1000))
+
+    plt.clabel(c1, fmt='%3.0f', fontsize='smaller')
+
+    # plt.grid(False)
 
 
-f1.savefig('mach.pdf', bbox_inches='tight')
-plt.close(f1)
+    c2 = plt.contour(np.log10(vel), np.log10(mdot), dens_b / dens_a, colors='C2',
+                     linewidths=0.5,
+                     levels=dens_ticks, linestyles='--')
+    plt.clabel(c2, fmt='%3.2f', fontsize='smaller')
 
-mach_numbers = np.logspace(-0.5, 1.5, 100)
-f2 = plt.figure(figsize=(6, 4))
-plt.plot(mach_numbers, fkin(mach_numbers))
-plt.xscale('log')
-plt.xticks(mach_ticks, map(str, mach_ticks))
-plt.xlabel(r'Mach number')
-plt.ylabel(r'$\frac{1}{2} \dot{m} v^2$ / L ')
-f2.savefig('fkin.pdf', bbox_inches='tight')
-plt.close(f1)
 
+    f1.savefig('mach.pdf', bbox_inches='tight')
+    plt.close(f1)
+
+if do_fkin_plot:
+    mach_numbers = np.logspace(-0.5, 1.5, 100)
+    f2 = plt.figure(figsize=(6, 4))
+    plt.plot(mach_numbers, fkin(mach_numbers))
+    plt.xscale('log')
+    plt.xticks(mach_ticks, map(str, mach_ticks))
+    plt.xlabel(r'Mach number')
+    plt.ylabel(r'$\frac{1}{2} \dot{m} v^2$ / L ')
+    f2.savefig('fkin.pdf', bbox_inches='tight')
+    plt.close(f1)
+
+print(f'Mach number     mdot        pressure    density   fkin')
+v = 0.03 * pc.c
+for m in [0.3, 1, 1.7, 3, 10]:
+    md = mdot_from_mach(m, power, v) / pc.msun * pc.yr
+    md_cgs = mdot_from_mach(m, power, v)
+    print(f'{m:<16f}{md:<12.5f}'
+          f'{pressure(power, md_cgs, v, area_cgs) / pres_a:<12.5f}'
+          f'{density(md_cgs, v, area_cgs) / (dens_a * mu * pc.amu):<12.5f}'
+          f'{fkin(m) :<12.5f}')
